@@ -13,7 +13,7 @@ using Test
     @testset "trig functions" begin
         x = dualseed(0.8)
         xv = value(x)
-        @test sin(x) ≈ Dual(sin(xv), [cos(xv)])
+        @test sin(x) ≈ Dual(sin(xv), (cos(xv),))
     end
 
     @testset "function composition" begin
