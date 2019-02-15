@@ -1,4 +1,5 @@
-struct Dual{T, P<:Tuple} <: Number
+# TODO: should this be a subtype of Number? causes more ambiguity warnings...
+struct Dual{T, P<:Tuple}
     value::T
     partials::P
 end
@@ -9,6 +10,9 @@ partials(d::Dual) = d.partials
 Base.:(==)(l::Dual, r::Dual) = value(l) == value(r) && partials(l) == partials(r)
 Base.isapprox(l::Dual, r::Dual) = value(l) ≈ value(r) && all(isapprox.(partials(l), partials(r)))
 
+function Base.show(io::IO, d::Dual)
+    print(io, "Dual($(value(d)), $(partials(d)))")
+end
 
 onehot(len, idx) = ntuple((i)->(Int(i==idx)), len)
 
@@ -105,11 +109,11 @@ function forwardprop end
 # again, perturb here will catch anything that's not CtoR
 @inline forwardprop(deriv::CtoR, perturb) =
     CtoR(forwardprop(wirtprimal(deriv), wirtprimal(perturb)) +
-            forwardprop(conj(wirtprimal(defiv)), wirtconj(perturb)))
+            forwardprop(conj(wirtprimal(deriv)), wirtconj(perturb)))
 
 @inline forwardprop(deriv::CtoR, perturb::CtoR) =
     CtoR(forwardprop(wirtprimal(deriv), wirtprimal(perturb)) +
-            forwardprop(conj(wirtprimal(defiv)), wirtprimal(perturb)))
+            forwardprop(conj(wirtprimal(deriv)), wirtprimal(perturb)))
 
 @inline function forwardprop(deriv, perturb::NonHolomorphic)
     # deriv should be a normal non-wirtinger (holomorphic) derivative
@@ -141,7 +145,7 @@ end
 @inline forwardprop(deriv::AntiHolomorphic, perturb::AntiHolomorphic) =
     forwardprop(wirtconj(deriv), wirtconj(perturb))
 
-unary_ops = [:sin, :cos, :tan, :log] #, :fft, :rfft, :ifft, :irfft]
+unary_ops = [:sin, :cos, :tan, :log, :real, :imag, :abs2, :conj] #, :fft, :rfft, :ifft, :irfft]
 for op in unary_ops
     @eval function Base.$op(d::Dual)
         x = value(d)

@@ -61,75 +61,14 @@ macro partials(ex)
     end
 end
 
-abstract type Wirtinger end
-
-# In the most general non-holomorphic case, we need to track both derivatives
-# (dfdz, dfdz̄), necessary for differentiating non-holomorphic complex-valued
-# functions
-struct NonHolomorphic{T} <: Wirtinger
-    primal::T
-    conjugate::T
-end
-
-function Base.:+(l::NonHolomorphic, r::NonHolomorphic)
-    NonHolomorphic(partials(l) .+ partials(r), conjpartials(l) .+ conjpartials(r))
-end
-
-# for the derivatives of real-valued functions the conjugate partial derivatives
-# are not independent of the primal, they are always the conjugate
-struct CtoR{T} <: Wirtinger
-    primal::T
-end
-
-function Base.:+(l::CtoR, r::CtoR)
-    CtoR(partials(l) .+ partials(r))
-end
-
-struct AntiHolomorphic{T} <: Wirtinger
-    conjugate::T
-end
-
-function Base.:+(l::AntiHolomorphic, r::AntiHolomorphic)
-    AntiHolomorphic(conjpartials(l) .+ conjpartials(r))
-end
-
-# Base.convert(::Type{<:NonHolomorphic}, p::Partials) = NonHolomorphic(partials(p), conjpartials(p))
-# Base.convert(::Type{<:NonHolomorphic}, x::Tuple) = NonHolomorphic(x, 0)
-
-
-
-# Base.promote_type(::Type{<:NonHolomorphic}, ::Type{<:Partials}) = NonHolomorphic
-# Base.promote_type(::Type{<:NonHolomorphic}, ::Type{<:Tuple}) = NonHolomorphic
-
-# This comes in handy in the propagation rules, because we can express the
-# general case in terms of the partials and conjpartials, and eliminate
-# unnecessary computation in a type-stable way.
-struct Zero end
-@inline Base.:+(::Zero, x) = x
-@inline Base.:+(x, ::Zero) = x
-@inline Base.:*(::Zero, x) = Zero()
-@inline Base.:*(x, ::Zero) = Zero()
-
-# Wirtinger unwrapping functions
-@inline wirtprimal(x) = x
-@inline wirtconj(::Any) = Zero()
-@inline wirtprimal(x::NonHolomorphic) = x.primal
-@inline wirtconj(x::NonHolomorphic) = x.conjugate
-@inline wirtprimal(x::CtoR) = x.primal
-@inline wirtprimal(::AntiHolomorphic) = Zero()
-@inline wirtconj(x::AntiHolomorphic) = x.conjugate
-
-# this is not well-defined. If the wirtinger is being used as a perturbation
-# then wirtconj(z) = z.primal, but if it's a partial derivative then
-# wirtconj(z) = conj(z.primal).
-@inline wirtconj(x::CtoR) = throw(ArgumentError("wirtconj not well-defined on CtoR types"))
-
 # unary holomorphic functions
 @partials sin(x) = (cos(x),  )
 @partials cos(x) = (-sin(x), )
 @partials tan(x) = (sec(x)^2,)
 @partials log(x) = (inv(x),  )
-@partials -(x) =   (-1,      )
+# this conflicts with subtraction - we need to include the arg types in the
+# diffrule lookup
+# @partials -(x) =   (-1,      )
 
 # the FFT is just an efficient matmul by a constant matrix with special
 # structure, so d(fft(x)) = fft(dx)
@@ -143,12 +82,12 @@ struct Zero end
 @partials -(l, r) = (1,        -1)
 @partials *(l, r) = (r,         l)
 @partials /(l, r) = (inv(r),   -l/r^2)
-@partials ^(b, e) = (e*n^(e-1), b^e*log(b))
+@partials ^(b, e) = (e*b^(e-1), b^e*log(b))
 
 # for antiholomorphic functions we only store the conjugate partial derivative,
 # because the primal is always zero. The composition of a holomorphic function
 # and an antiholomorphic one is antiholomorphic
-@partials conj(z) = (AntiHolomorphic(conj(z)),)
+@partials conj(z) = (AntiHolomorphic(1),)
 
 # C->R functions - we can take avantage of some special structure to save on
 # computation. The conjugate partial is always conjugate to the primal, so we
