@@ -145,36 +145,57 @@ end
 @inline forwardprop(deriv::AntiHolomorphic, perturb::AntiHolomorphic) =
     forwardprop(wirtconj(deriv), wirtconj(perturb))
 
-unary_ops = [:sin, :cos, :tan, :log, :real, :imag, :abs2, :conj] #, :fft, :rfft, :ifft, :irfft]
-for op in unary_ops
-    @eval function Base.$op(d::Dual)
-        x = value(d)
-        diff, = diffrule($op)(x)
+"""
+Defines a method to the given unary function that handles dual numbers
+"""
+macro add_forward_unary(op)
+    quote
+        function $(esc(op))(d::Dual)
+            x = value(d)
+            diff, = diffrule($(esc(op)))(x)
 
-        # use Ref to treat diff as a scalar in broadcast
-        Dual($op(x), forwardprop.(Ref(diff), partials(d)))
+            # use Ref to treat diff as a scalar in broadcast
+            Dual($(esc(op))(x), forwardprop.(Ref(diff), partials(d)))
+        end
     end
 end
 
-binary_ops = [:+, :-, :*, :/, :^]
-for op in binary_ops
-    @eval function Base.$op(l::Number, r::Dual)
-        lx, rx = l, value(r)
-        _, rdiff = diffrule($op)(lx, rx)
+macro add_forward_binary(op)
+    op = esc(op)
+    quote
+        function $op(l::Number, r::Dual)
+            lx, rx = l, value(r)
+            _, rdiff = diffrule($op)(lx, rx)
 
-        Dual($op(lx, rx), forwardprop.(Ref(rdiff), partials(r)))
-    end
-    @eval function Base.$op(l::Dual, r::Number)
-        lx, rx = value(l), r
-        ldiff, = diffrule($op)(lx, rx)
+            Dual($op(lx, rx), forwardprop.(Ref(rdiff), partials(r)))
+        end
+        function $op(l::Dual, r::Number)
+            lx, rx = value(l), r
+            ldiff, = diffrule($op)(lx, rx)
 
-        Dual($op(lx, rx), forwardprop.(Ref(ldiff), partials(l)))
-    end
-    @eval function Base.$op(l::Dual, r::Dual)
-        lx, rx = value(l), value(r)
-        ldiff, rdiff = diffrule($op)(lx, rx)
+            Dual($op(lx, rx), forwardprop.(Ref(ldiff), partials(l)))
+        end
+        function $op(l::Dual, r::Dual)
+            lx, rx = value(l), value(r)
+            ldiff, rdiff = diffrule($op)(lx, rx)
 
-        Dual($op(lx, rx), forwardprop.(Ref(ldiff), partials(l)) .+
-                          forwardprop.(Ref(rdiff), partials(r)))
+            # need to call + as a function because macros can't handle dot
+            # operators
+            Dual($op(lx, rx), (Main.:+).(forwardprop.(Ref(ldiff), partials(l)),
+                                         forwardprop.(Ref(rdiff), partials(r))))
+        end
     end
 end
+
+
+base_unary_ops = [:sin, :cos, :tan, :log, :real, :imag, :abs2, :conj] #, :fft, :rfft, :ifft, :irfft]
+for op in base_unary_ops
+    @eval @add_forward_unary Base.$op
+end
+
+base_binary_ops = [:+, :-, :*, :/, :^]
+for op in base_binary_ops
+    @eval @add_forward_binary Base.$op
+end
+
+@macroexpand @add_forward_binary Base.:+

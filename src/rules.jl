@@ -49,6 +49,9 @@ as:
 
 The `CtoR` wrapper is similar to the `NonHolomorphic` one, but allows us to take
 advantage of the conjugate relationship.
+
+In the future this will need to be modified to take the argument types count and
+types into account.
 """
 macro partials(ex)
     def = splitdef(ex)
@@ -57,7 +60,7 @@ macro partials(ex)
     args = esc.(def[:args])
     body = esc(def[:body])
     quote
-        PedagogicalAutoDiff.diffrule(::typeof($(esc(fname)))) = ($(args...),) -> $body
+        ToyAD.diffrule(::typeof($(esc(fname)))) = ($(args...),) -> $body
     end
 end
 

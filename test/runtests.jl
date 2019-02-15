@@ -1,6 +1,6 @@
-using PedagogicalAutoDiff
-using PedagogicalAutoDiff: CtoR, NonHolomorphic, AntiHolomorphic
-using PedagogicalAutoDiff: wirtprimal, wirtconj
+using ToyAD
+using ToyAD: CtoR, NonHolomorphic, AntiHolomorphic
+using ToyAD: wirtprimal, wirtconj
 using Test
 
 # define a nonholomorphic function and its derivatives.
@@ -9,15 +9,7 @@ dnonholodz(z) = 6z * 5conj(z)^3
 dnonholodz̄(z) = 3z^2 * 15conj(z)^2
 # define an explicit diff rule so we're not testing any function composition
 @partials nonholo(z) = (NonHolomorphic(dnonholodz(z), dnonholodz̄(z)),)
-
-# TODO: we should export a macro to do these registrations
-function nonholo(d::Dual)
-    x = value(d)
-    diff, = PedagogicalAutoDiff.diffrule(nonholo)(x)
-
-    # use Ref to treat diff as a scalar in broadcast
-    Dual(nonholo(x), PedagogicalAutoDiff.forwardprop.(Ref(diff), partials(d)))
-end
+@add_forward_unary nonholo
 
 @testset begin
 @testset "basic arithmetic" begin
