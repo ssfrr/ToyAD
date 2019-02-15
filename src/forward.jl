@@ -196,5 +196,3 @@ base_binary_ops = [:+, :-, :*, :/, :^]
 for op in base_binary_ops
     @eval @add_forward_binary Base.$op
 end
-
-@macroexpand @add_forward_binary Base.:+
