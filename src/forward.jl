@@ -90,30 +90,29 @@ function forwardprop end
 # NonHolomorphic, and it should still take advantage of special structure of the
 # arguments because of the `wirtprimal` and `wirtconj` implementations, which
 # should be optimized out when possible.
+# note that the derivatives and perturbations are conceptually as
+# `(df/dz, df/dz̄)` pairs, but the normal AD multivariate chain rule assumes the
+# conjugate derivative is `df̄/dz`. Fortunately those quantities are conjugate
+# to each other, so we can convert between them as necessary.
+@inline _primal_forwardprop(deriv, perturb) =
+    forwardprop(wirtprimal(deriv), wirtprimal(perturb)) +
+        forwardprop(wirtconj(deriv), conj(wirtconj(perturb)))
+
+@inline _conj_forwardprop(deriv, perturb) =
+    forwardprop(wirtconj(deriv), conj(wirtprimal(perturb))) +
+        forwardprop(wirtprimal(deriv), wirtconj(perturb))
+
 @inline _nonholo_forwardprop(deriv, perturb) =
-    NonHolomorphic(forwardprop(wirtprimal(deriv), wirtprimal(perturb)) +
-                        forwardprop(wirtconj(deriv), wirtconj(perturb)),
-                   forwardprop(conj(wirtconj(deriv)), wirtprimal(perturb)) +
-                        forwardprop(conj(wirtprimal(deriv)), wirtconj(perturb)))
+    NonHolomorphic(_primal_forwardprop(deriv, perturb),
+                   _conj_forwardprop(deriv, perturb))
 
-# for CtoR perturbations wirtconj(p) == wirtprimal(p), so we make that
-# substitution here
-@inline _nonholo_forwardprop(deriv, perturb::CtoR) =
-    NonHolomorphic(forwardprop(wirtprimal(deriv), wirtprimal(perturb)) +
-                        forwardprop(wirtconj(deriv), wirtprimal(perturb)),
-                   forwardprop(conj(wirtconj(deriv)), wirtprimal(perturb)) +
-                        forwardprop(conj(wirtprimal(deriv)), wirtprimal(perturb)))
+@inline _antiholo_forwardprop(deriv, perturb) =
+    AntiHolomorphic(_conj_forwardprop(deriv, perturb))
 
+
+# NonHolomorphic and CtoR functions always have the same output type
 @inline forwardprop(deriv::NonHolomorphic, perturb) = _nonholo_forwardprop(deriv, perturb)
-
-# again, perturb here will catch anything that's not CtoR
-@inline forwardprop(deriv::CtoR, perturb) =
-    CtoR(forwardprop(wirtprimal(deriv), wirtprimal(perturb)) +
-            forwardprop(conj(wirtprimal(deriv)), wirtconj(perturb)))
-
-@inline forwardprop(deriv::CtoR, perturb::CtoR) =
-    CtoR(forwardprop(wirtprimal(deriv), wirtprimal(perturb)) +
-            forwardprop(conj(wirtprimal(deriv)), wirtprimal(perturb)))
+@inline forwardprop(deriv::CtoR, perturb) = CtoR(_primal_forwardprop(deriv, perturb))
 
 @inline function forwardprop(deriv, perturb::NonHolomorphic)
     # deriv should be a normal non-wirtinger (holomorphic) derivative
@@ -124,7 +123,7 @@ end
 @inline function forwardprop(deriv, perturb::AntiHolomorphic)
     # deriv should be a normal non-wirtinger (holomorphic) derivative
     @assert !(deriv isa Wirtinger)
-    AntiHolomorphic(forwardprop(conj(deriv), wirtconj(perturb)))
+    _antiholo_forwardprop(deriv, perturb)
 end
 
 @inline function forwardprop(deriv, perturb::CtoR)
@@ -139,9 +138,10 @@ end
 @inline function forwardprop(deriv::AntiHolomorphic, perturb)
     # perturb should be a normal non-wirtinger (holomorphic) perturbation
     @assert !(perturb isa Wirtinger)
-    AntiHolomorphic(forwardprop(conj(wirtconj(deriv)), perturb))
+    _antiholo_forwardprop(deriv, perturb)
 end
 
+# composition is holomorphic, return an unwrapped value
 @inline forwardprop(deriv::AntiHolomorphic, perturb::AntiHolomorphic) =
     forwardprop(wirtconj(deriv), wirtconj(perturb))
 
@@ -186,7 +186,6 @@ macro add_forward_binary(op)
         end
     end
 end
-
 
 base_unary_ops = [:sin, :cos, :tan, :log, :real, :imag, :abs2, :conj] #, :fft, :rfft, :ifft, :irfft]
 for op in base_unary_ops

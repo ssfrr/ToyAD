@@ -1,5 +1,9 @@
 abstract type Wirtinger end
 
+function wirtshow(io, w::Wirtinger)
+    print(io, "(dz: $(wirtprimal(w)), dz̄: $(wirtconj(w)))")
+end
+
 # In the most general non-holomorphic case, we need to track both derivatives
 # (dfdz, dfdz̄), necessary for differentiating non-holomorphic complex-valued
 # functions
@@ -9,7 +13,8 @@ struct NonHolomorphic{PT, CT} <: Wirtinger
 end
 
 function Base.show(io::IO, w::NonHolomorphic)
-    print(io, "NonHolomorphic(dz: $(wirtprimal(w)), dz̄: $(wirtconj(w)))")
+    print(io, "NonHolomorphic")
+    wirtshow(io, w)
 end
 
 function Base.convert(::Type{<:Complex}, w::Wirtinger)
@@ -24,7 +29,8 @@ struct CtoR{T} <: Wirtinger
 end
 
 function Base.show(io::IO, w::CtoR)
-    print(io, "CtoR(dz: $(wirtprimal(w)), dz̄: $(wirtprimal(w)))")
+    print(io, "CtoR")
+    wirtshow(io, w)
 end
 
 struct AntiHolomorphic{T} <: Wirtinger
@@ -32,7 +38,8 @@ struct AntiHolomorphic{T} <: Wirtinger
 end
 
 function Base.show(io::IO, w::AntiHolomorphic)
-    print(io, "AntiHolomorphic(dz: 0, dz̄: $(wirtconj(w)))")
+    print(io, "AntiHolomorphic")
+    wirtshow(io, w)
 end
 
 Base.:+(l::NonHolomorphic, r::NonHolomorphic) =
@@ -54,15 +61,8 @@ Base.:+(l::Wirtinger, r::Number) =
 Base.:+(l::Number, r::Wirtinger) =
     convert(NonHolomorphic, l) + convert(NonHolomorphic, r)
 
-Base.convert(::Type{NonHolomorphic}, x::AntiHolomorphic) =
+Base.convert(::Type{NonHolomorphic}, x::Union{Wirtinger, Number}) =
     NonHolomorphic(wirtprimal(x), wirtconj(x))
-
-Base.convert(::Type{NonHolomorphic}, x::CtoR) =
-    NonHolomorphic(wirtprimal(x), wirtprimal(x))
-
-Base.convert(::Type{NonHolomorphic}, x::Number) =
-    NonHolomorphic(wirtprimal(x), wirtconj(x))
-
 
 # we support promotion mostly so that addition works when we're summing up
 # the partial differentials to get the total. It might be safer to just define
@@ -80,8 +80,10 @@ Base.convert(::Type{NonHolomorphic}, x::Number) =
 struct Zero end
 @inline Base.:+(::Zero, x) = x
 @inline Base.:+(x, ::Zero) = x
+@inline Base.:+(::Zero, ::Zero) = Zero()
 @inline Base.:*(::Zero, x) = Zero()
 @inline Base.:*(x, ::Zero) = Zero()
+@inline Base.:*(::Zero, ::Zero) = Zero()
 @inline Base.conj(::Zero) = Zero()
 @inline Base.:(==)(::Zero, x) = 0 == x
 @inline Base.:(==)(x, ::Zero) = x == 0
@@ -90,15 +92,11 @@ struct Zero end
 Base.show(io::IO, ::Zero) = print(io, "Zero()")
 
 # Wirtinger unwrapping functions
-@inline wirtprimal(x) = x
-@inline wirtconj(::Any) = Zero()
 @inline wirtprimal(x::NonHolomorphic) = x.primal
 @inline wirtconj(x::NonHolomorphic) = x.conjugate
 @inline wirtprimal(x::CtoR) = x.primal
+@inline wirtconj(x::CtoR) = conj(x.primal)
 @inline wirtprimal(::AntiHolomorphic) = Zero()
 @inline wirtconj(x::AntiHolomorphic) = x.conjugate
-
-# this is not well-defined. If the wirtinger is being used as a perturbation
-# then wirtconj(z) = z.primal, but if it's a partial derivative then
-# wirtconj(z) = conj(z.primal).
-@inline wirtconj(x::CtoR) = throw(ArgumentError("wirtconj not well-defined on CtoR types"))
+@inline wirtprimal(x) = x
+@inline wirtconj(::Any) = Zero()
