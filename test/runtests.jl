@@ -95,7 +95,7 @@ end
     # this time use a new function that's identical to nonholo, so we should
     # get the same result but this time force the system to compose basic
     # functions
-    f(z) = (2+im) * z * z'^2
+    f(z) = (2+im) * z * conj(z)^2
     dualf = f(dualz)
     df = partials(dualf)[1]
     @test value(dualf) ≈ nonholo(z)
@@ -121,9 +121,9 @@ end
 
     testforward(z->holo(nonholo(z)), NonHolomorphic,
         z->C^2*cos(C*z*z'^2)*z'^2,
-        z->C^2*cos(C*z*z'^2)*2*z'*z)
+        z->C^2*cos(C*z*z'^2)*2z'*z)
     testforward(z->holo(holo(z)), Complex,
-        z->C^2*cos((C*sin(z)))*cos(z),
+        z->C^2*cos((C*sin(z)))cos(z),
         z->0)
     testforward(z->holo(antiholo(z)), AntiHolomorphic,
         z->0,
@@ -138,15 +138,25 @@ end
     testforward(z->antiholo(holo(z)), AntiHolomorphic,
         z->0,
         z->C*C'^2*sin(2*z'))
-    # testforward(z->antiholo(antiholo(z)), Complex,
-    #     z->,
-    #     z->0)
-    # testforward(z->antiholo(ctor(z)), NonHolomorphic, , )
-    #
-    # testforward(z->ctor(nonholo(z)), CtoR, , )
-    # testforward(z->ctor(holo(z)), CtoR, , )
-    # testforward(z->ctor(antiholo(z)), CtoR, , )
-    # testforward(z->ctor(ctor(z)), CtoR, , )
+    testforward(z->antiholo(antiholo(z)), Complex,
+        z->C*C'^2*4z^3,
+        z->0)
+    testforward(z->antiholo(ctor(z)), NonHolomorphic,
+        z->C*2z*z'^2,
+        z->C*2z^2*z')
+
+    testforward(z->ctor(nonholo(z)), CtoR,
+        z->C'*C*3z'^3*z^2,
+        z->C'*C*3z'^2*z^3)
+    testforward(z->ctor(holo(z)), CtoR,
+        z->C*C'*sin(z')cos(z),
+        z->C*C'*cos(z')sin(z))
+    testforward(z->ctor(antiholo(z)), CtoR,
+        z->C'*C*2*z*z'^2,
+        z->C'*C*2*z^2*z')
+    testforward(z->ctor(ctor(z)), CtoR,
+        z->2z'^2*z,
+        z->2z'*z^2)
 end
 
 end
