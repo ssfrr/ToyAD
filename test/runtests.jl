@@ -32,7 +32,7 @@ dctor_dz̄(z) = z
 
 # test a dual function
 function testforward(fn, expectedT, dfdz=nothing, dfdz̄=nothing)
-    z = 10.0+1.0im
+    z = 3.0+1.0im
     dualz = dualseed(z)
     dualf = fn(dualz)
     df = partials(dualf)[1]
@@ -78,7 +78,7 @@ end
 end
 
 @testset "AntiHolomorphic" begin
-    z = 10.0+1.0im
+    z = 3.0+1.0im
     dualz = dualseed(z)
     dualf = conj(dualz)
     dfdz = partials(dualf)[1]
@@ -89,7 +89,7 @@ end
 end
 
 @testset "Composed NonHolomorphic" begin
-    z = 10.0+1.0im
+    z = 3.0+1.0im
     dualz = dualseed(z)
 
     # this time use a new function that's identical to nonholo, so we should
@@ -120,11 +120,19 @@ end
         z->C*3*z^2*conj(z)^3,
         z->C*3*z^3*conj(z)^2)
 
-    # testforward(z->holo(nonholo(z)), NonHolomorphic, , )
-    # testforward(z->holo(holo(z)), Complex, 4z^3, 0)
-    # testforward(z->holo(antiholo(z)), AntiHolomorphic, , )
-    # testforward(z->holo(ctor(z)), NonHolomorphic, , )
-    #
+    testforward(z->holo(nonholo(z)), NonHolomorphic,
+        z->C^2*cos(C*z*conj(z)^2)*conj(z)^2,
+        z->C^2*cos(C*z*conj(z)^2)*2*conj(z)*z)
+    testforward(z->holo(holo(z)), Complex,
+        z->C^2*cos((C*sin(z)))*cos(z),
+        z->0)
+    testforward(z->holo(antiholo(z)), AntiHolomorphic,
+        z->0,
+        z->C^2*cos(C*conj(z)^2)*2conj(z))
+    testforward(z->holo(ctor(z)), NonHolomorphic,
+        z->C*cos(conj(z)*z)*conj(z),
+        z->C*cos(conj(z)*z)*z)
+
     # testforward(z->antiholo(nonholo(z)), NonHolomorphic, , )
     # testforward(z->antiholo(holo(z)), AntiHolomorphic, , )
     # testforward(z->antiholo(antiholo(z)), Complex, , )
