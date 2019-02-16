@@ -12,20 +12,20 @@ dholo_dz̄(z) = 0
 @partials holo(z) = (dholo_dz(z),)
 @add_forward_unary holo
 
-@noinline nonholo(z) = (2+im) * z * conj(z)^2
-dnonholo_dz(z) = (2+im) * conj(z)^2
-dnonholo_dz̄(z) = (2+im) * z * 2conj(z)
+@noinline nonholo(z) = (2+im) * z * z'^2
+dnonholo_dz(z) = (2+im) * z'^2
+dnonholo_dz̄(z) = (2+im) * z * 2z'
 @partials nonholo(z) = (NonHolomorphic(dnonholo_dz(z), dnonholo_dz̄(z)),)
 @add_forward_unary nonholo
 
 @noinline antiholo(z) = (2+im) * conj(z^2)
 dantiholo_dz(z) = 0
-dantiholo_dz̄(z) = (2+im) * 2conj(z)
+dantiholo_dz̄(z) = (2+im) * 2z'
 @partials antiholo(z) = (AntiHolomorphic(dantiholo_dz̄(z)),)
 @add_forward_unary antiholo
 
-@noinline ctor(z) = conj(z)*z
-dctor_dz(z) = conj(z)
+@noinline ctor(z) = z'*z
+dctor_dz(z) = z'
 dctor_dz̄(z) = z
 @partials ctor(z) = (CtoR(dctor_dz(z)),)
 @add_forward_unary ctor
@@ -82,7 +82,7 @@ end
     dualz = dualseed(z)
     dualf = conj(dualz)
     dfdz = partials(dualf)[1]
-    @test value(dualf) ≈ conj(z)
+    @test value(dualf) ≈ z'
     @test dfdz isa AntiHolomorphic
     @test wirtprimal(dfdz) ≈ 0
     @test wirtconj(dfdz) ≈ 1
@@ -95,7 +95,7 @@ end
     # this time use a new function that's identical to nonholo, so we should
     # get the same result but this time force the system to compose basic
     # functions
-    f(z) = (2+im) * z * conj(z)^2
+    f(z) = (2+im) * z * z'^2
     dualf = f(dualz)
     df = partials(dualf)[1]
     @test value(dualf) ≈ nonholo(z)
@@ -107,38 +107,37 @@ end
 # test all compositions of function types
 @testset "Composition Matrix" begin
     C = (2+im)
-    C2 = conj(C)
     testforward(z->nonholo(nonholo(z)), NonHolomorphic,
-        z->C^2*C2^2*5z^4*conj(z)^4, z->C^2*C2^2*4z^5*conj(z)^3)
+        z->C^2*C'^2*5z^4*z'^4, z->C^2*C'^2*4z^5*z'^3)
     testforward(z->nonholo(holo(z)), NonHolomorphic,
-        z->C^2*C2^2*conj(sin(z))^2*cos(z),
-        z->C^2*C2^2*2sin(z)*conj(sin(z))*conj(cos(z)))
+        z->C^2*C'^2*conj(sin(z))^2*cos(z),
+        z->C^2*C'^2*2sin(z)*conj(sin(z))*conj(cos(z)))
     testforward(z->nonholo(antiholo(z)), NonHolomorphic,
-        z->C^2*C2^2*4*z^3*conj(z)^2,
-        z->C^2*C2^2*2*z^4*conj(z))
+        z->C^2*C'^2*4*z^3*z'^2,
+        z->C^2*C'^2*2*z^4*z')
     testforward(z->nonholo(ctor(z)), NonHolomorphic,
-        z->C*3*z^2*conj(z)^3,
-        z->C*3*z^3*conj(z)^2)
+        z->C*3*z^2*z'^3,
+        z->C*3*z^3*z'^2)
 
     testforward(z->holo(nonholo(z)), NonHolomorphic,
-        z->C^2*cos(C*z*conj(z)^2)*conj(z)^2,
-        z->C^2*cos(C*z*conj(z)^2)*2*conj(z)*z)
+        z->C^2*cos(C*z*z'^2)*z'^2,
+        z->C^2*cos(C*z*z'^2)*2*z'*z)
     testforward(z->holo(holo(z)), Complex,
         z->C^2*cos((C*sin(z)))*cos(z),
         z->0)
     testforward(z->holo(antiholo(z)), AntiHolomorphic,
         z->0,
-        z->C^2*cos(C*conj(z)^2)*2conj(z))
+        z->C^2*cos(C*z'^2)*2z')
     testforward(z->holo(ctor(z)), NonHolomorphic,
-        z->C*cos(conj(z)*z)*conj(z),
-        z->C*cos(conj(z)*z)*z)
+        z->C*cos(z'*z)*z',
+        z->C*cos(z'*z)*z)
 
     testforward(z->antiholo(nonholo(z)), NonHolomorphic,
-        z->C*C2^2*4conj(z)^2*z^3,
-        z->C*C2^2*2conj(z)*z^4)
+        z->C*C'^2*4z'^2*z^3,
+        z->C*C'^2*2z'*z^4)
     testforward(z->antiholo(holo(z)), AntiHolomorphic,
         z->0,
-        z->C*C2^2*sin(2*conj(z)))
+        z->C*C'^2*sin(2*z'))
     # testforward(z->antiholo(antiholo(z)), Complex,
     #     z->,
     #     z->0)
