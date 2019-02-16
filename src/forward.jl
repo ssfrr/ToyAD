@@ -111,7 +111,10 @@ function forwardprop end
 
 
 # NonHolomorphic and CtoR functions always have the same output type
+@inline forwardprop(deriv::NonHolomorphic, perturb::NonHolomorphic) = _nonholo_forwardprop(deriv, perturb)
 @inline forwardprop(deriv::NonHolomorphic, perturb) = _nonholo_forwardprop(deriv, perturb)
+@inline forwardprop(deriv::NonHolomorphic, perturb::AntiHolomorphic) = _nonholo_forwardprop(deriv, perturb)
+@inline forwardprop(deriv::NonHolomorphic, perturb::CtoR) = _nonholo_forwardprop(deriv, perturb)
 @inline forwardprop(deriv::CtoR, perturb) = CtoR(_primal_forwardprop(deriv, perturb))
 
 @inline function forwardprop(deriv, perturb::NonHolomorphic)
