@@ -95,13 +95,13 @@ end
     # this time use a new function that's identical to nonholo, so we should
     # get the same result but this time force the system to compose basic
     # functions
-    f(z) = (2+im) * 3z^2 * conj(z)^3
+    f(z) = (2+im) * z * conj(z)^2
     dualf = f(dualz)
     df = partials(dualf)[1]
     @test value(dualf) ≈ nonholo(z)
     @test df isa NonHolomorphic
     @test wirtprimal(df) ≈ dnonholo_dz(z)
-    @test wirtconj(df) ≈ conj(dnonholo_dz̄(z))
+    @test wirtconj(df) ≈ dnonholo_dz̄(z)
 end
 
 # test all compositions of function types

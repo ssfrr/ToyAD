@@ -94,13 +94,18 @@ function forwardprop end
 # `(df/dz, df/dz̄)` pairs, but the normal AD multivariate chain rule assumes the
 # conjugate derivative is `df̄/dz`. Fortunately those quantities are conjugate
 # to each other, so we can convert between them as necessary.
+
+# these two functions define the primal and conjugate components, respectively
 @inline _primal_forwardprop(deriv, perturb) =
     forwardprop(wirtprimal(deriv), wirtprimal(perturb)) +
         forwardprop(wirtconj(deriv), conj(wirtconj(perturb)))
-
 @inline _conj_forwardprop(deriv, perturb) =
     forwardprop(wirtconj(deriv), conj(wirtprimal(perturb))) +
         forwardprop(wirtprimal(deriv), wirtconj(perturb))
+
+# now define forwardprop steps for each of the 4 possible result types
+@inline _holo_forwardprop(deriv, perturb) =
+    _primal_forwardprop(deriv, perturb)
 
 @inline _nonholo_forwardprop(deriv, perturb) =
     NonHolomorphic(_primal_forwardprop(deriv, perturb),
@@ -109,44 +114,30 @@ function forwardprop end
 @inline _antiholo_forwardprop(deriv, perturb) =
     AntiHolomorphic(_conj_forwardprop(deriv, perturb))
 
+@inline _ctor_forwardprop(deriv, perturb) =
+    CtoR(_primal_forwardprop(deriv, perturb))
 
-# NonHolomorphic and CtoR functions always have the same output type
-@inline forwardprop(deriv::NonHolomorphic, perturb::NonHolomorphic) = _nonholo_forwardprop(deriv, perturb)
-@inline forwardprop(deriv::NonHolomorphic, perturb) = _nonholo_forwardprop(deriv, perturb)
+
+@inline forwardprop(deriv, perturb::NonHolomorphic)  = _nonholo_forwardprop(deriv, perturb)
+@inline forwardprop(deriv, perturb::AntiHolomorphic) = _antiholo_forwardprop(deriv, perturb)
+@inline forwardprop(deriv, perturb::CtoR)            = _nonholo_forwardprop(deriv, perturb)
+# forwardprop for non-wirtingers is defined above
+
+@inline forwardprop(deriv::NonHolomorphic, perturb)                  = _nonholo_forwardprop(deriv, perturb)
+@inline forwardprop(deriv::NonHolomorphic, perturb::NonHolomorphic)  = _nonholo_forwardprop(deriv, perturb)
 @inline forwardprop(deriv::NonHolomorphic, perturb::AntiHolomorphic) = _nonholo_forwardprop(deriv, perturb)
-@inline forwardprop(deriv::NonHolomorphic, perturb::CtoR) = _nonholo_forwardprop(deriv, perturb)
-@inline forwardprop(deriv::CtoR, perturb) = CtoR(_primal_forwardprop(deriv, perturb))
+@inline forwardprop(deriv::NonHolomorphic, perturb::CtoR)            = _nonholo_forwardprop(deriv, perturb)
 
-@inline function forwardprop(deriv, perturb::NonHolomorphic)
-    # deriv should be a normal non-wirtinger (holomorphic) derivative
-    @assert !(deriv isa Wirtinger)
-    _nonholo_forwardprop(deriv, perturb)
-end
-
-@inline function forwardprop(deriv, perturb::AntiHolomorphic)
-    # deriv should be a normal non-wirtinger (holomorphic) derivative
-    @assert !(deriv isa Wirtinger)
-    _antiholo_forwardprop(deriv, perturb)
-end
-
-@inline function forwardprop(deriv, perturb::CtoR)
-    # deriv should be a normal non-wirtinger (holomorphic) derivative
-    @assert !(deriv isa Wirtinger)
-    _nonholo_forwardprop(deriv, perturb)
-end
-
-@inline forwardprop(deriv::AntiHolomorphic, perturb::Union{AntiHolomorphic, CtoR}) =
-    _nonholo_forwardprop(deriv, perturb)
-
-@inline function forwardprop(deriv::AntiHolomorphic, perturb)
-    # perturb should be a normal non-wirtinger (holomorphic) perturbation
-    @assert !(perturb isa Wirtinger)
-    _antiholo_forwardprop(deriv, perturb)
-end
-
+@inline forwardprop(deriv::AntiHolomorphic, perturb)                  = _antiholo_forwardprop(deriv, perturb)
+@inline forwardprop(deriv::AntiHolomorphic, perturb::NonHolomorphic)  = _nonholo_forwardprop(deriv, perturb)
 # composition is holomorphic, return an unwrapped value
-@inline forwardprop(deriv::AntiHolomorphic, perturb::AntiHolomorphic) =
-    forwardprop(wirtconj(deriv), wirtconj(perturb))
+@inline forwardprop(deriv::AntiHolomorphic, perturb::AntiHolomorphic) = _primal_forwardprop(deriv, perturb)
+@inline forwardprop(deriv::AntiHolomorphic, perturb::CtoR)            = _nonholo_forwardprop(deriv, perturb)
+
+@inline forwardprop(deriv::CtoR, perturb)                  = _ctor_forwardprop(deriv, perturb)
+@inline forwardprop(deriv::CtoR, perturb::NonHolomorphic)  = _ctor_forwardprop(deriv, perturb)
+@inline forwardprop(deriv::CtoR, perturb::AntiHolomorphic) = _ctor_forwardprop(deriv, perturb)
+@inline forwardprop(deriv::CtoR, perturb::CtoR)            = _ctor_forwardprop(deriv, perturb)
 
 """
 Defines a method to the given unary function that handles dual numbers
