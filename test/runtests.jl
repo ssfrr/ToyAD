@@ -133,9 +133,15 @@ end
         z->C*cos(conj(z)*z)*conj(z),
         z->C*cos(conj(z)*z)*z)
 
-    # testforward(z->antiholo(nonholo(z)), NonHolomorphic, , )
-    # testforward(z->antiholo(holo(z)), AntiHolomorphic, , )
-    # testforward(z->antiholo(antiholo(z)), Complex, , )
+    testforward(z->antiholo(nonholo(z)), NonHolomorphic,
+        z->C*C2^2*4conj(z)^2*z^3,
+        z->C*C2^2*2conj(z)*z^4)
+    testforward(z->antiholo(holo(z)), AntiHolomorphic,
+        z->0,
+        z->C*C2^2*sin(2*conj(z)))
+    # testforward(z->antiholo(antiholo(z)), Complex,
+    #     z->,
+    #     z->0)
     # testforward(z->antiholo(ctor(z)), NonHolomorphic, , )
     #
     # testforward(z->ctor(nonholo(z)), CtoR, , )
